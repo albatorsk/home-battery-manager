@@ -161,17 +161,34 @@ class HomeBatteryManagerCoordinator:
             entity_min = -max_discharge
             entity_max = max_charge
 
-        # Zero-export setpoint: negate house power so the battery offsets it.
-        # Positive → charging, negative → discharging.
-        battery_power = -house_power
-        if _entry_value(self.entry, CONF_INVERT_SET_POWER, False):
-            battery_power = -battery_power
+        current_command = None
+        if number_state is not None and number_state.state not in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+            "",
+        ):
+            try:
+                current_command = float(number_state.state)
+            except ValueError:
+                current_command = None
+
+        if current_command is None:
+            current_command = float(self.battery_power_setpoint or 0)
+
+        invert_set_power = _entry_value(self.entry, CONF_INVERT_SET_POWER, False)
+
+        # Corrective control in the integration's native sign convention:
+        # target_native = current_native - house_power
+        current_native = -current_command if invert_set_power else current_command
+        target_native = current_native - house_power
+        battery_power = -target_native if invert_set_power else target_native
         battery_power = max(entity_min, min(entity_max, battery_power))
         battery_power = int(round(battery_power))
 
         _LOGGER.debug(
-            "House power %.1f W → battery setpoint %.1f W (limits %.1f..%.1f W)",
+            "House power %.1f W, current setpoint %.1f W → target %.1f W (limits %.1f..%.1f W)",
             house_power,
+            current_command,
             battery_power,
             entity_min,
             entity_max,
