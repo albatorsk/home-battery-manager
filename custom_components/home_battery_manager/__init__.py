@@ -178,6 +178,9 @@ class HomeBatteryManagerCoordinator:
         )
 
         previous_setpoint = self.battery_power_setpoint
+        if previous_setpoint == battery_power:
+            return
+
         self.battery_power_setpoint = battery_power
         changed_state = event.data.get("new_state")
         if previous_setpoint != battery_power and changed_state is not None:
