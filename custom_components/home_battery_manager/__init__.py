@@ -167,7 +167,7 @@ class HomeBatteryManagerCoordinator:
         if _entry_value(self.entry, CONF_INVERT_SET_POWER, False):
             battery_power = -battery_power
         battery_power = max(entity_min, min(entity_max, battery_power))
-        battery_power = round(battery_power, 1)
+        battery_power = int(round(battery_power))
 
         _LOGGER.debug(
             "House power %.1f W → battery setpoint %.1f W (limits %.1f..%.1f W)",
