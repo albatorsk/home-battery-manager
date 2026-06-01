@@ -1,6 +1,7 @@
 """Home Battery Manager integration."""
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -15,6 +16,9 @@ from .const import (
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_POWER_METER,
+    CONF_POWER_METER_EXPORT,
+    CONF_POWER_METER_IMPORT,
+    CONF_USE_DUAL_POWER_METERS,
     DEFAULT_MAX_CHARGE_POWER,
     DEFAULT_MAX_DISCHARGE_POWER,
     DOMAIN,
@@ -24,6 +28,13 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
+
+
+def _entry_value(entry: ConfigEntry, key: str, default):
+    """Read a setting from options first, then data."""
+    if key in entry.options:
+        return entry.options[key]
+    return entry.data.get(key, default)
 
 
 class HomeBatteryManagerCoordinator:
@@ -40,16 +51,75 @@ class HomeBatteryManagerCoordinator:
         self.entry = entry
         # Last setpoint sent to the battery, exposed to sensor entities.
         self.battery_power_setpoint: float | None = None
+        # Timestamp for when the setpoint value last changed.
+        self.set_power_last_changed: datetime | None = None
         self._cancel_listener: callable | None = None
 
     @callback
     def async_start(self) -> None:
-        """Begin listening to the power meter entity."""
-        power_meter = self.entry.data[CONF_POWER_METER]
+        """Begin listening to the configured power meter entity or entities."""
+        meter_entities = self._meter_entities()
+        if not meter_entities:
+            _LOGGER.warning("No power meter entities configured; control loop is inactive")
+            return
+
         self._cancel_listener = async_track_state_change_event(
-            self.hass, [power_meter], self._handle_power_meter_change
+            self.hass, meter_entities, self._handle_power_meter_change
         )
-        _LOGGER.debug("Listening to power meter '%s'", power_meter)
+        _LOGGER.debug("Listening to power meter entities %s", meter_entities)
+
+    def _meter_entities(self) -> list[str]:
+        """Return meter entities that should trigger control loop updates."""
+        if _entry_value(self.entry, CONF_USE_DUAL_POWER_METERS, False):
+            meter_import = _entry_value(self.entry, CONF_POWER_METER_IMPORT, "")
+            meter_export = _entry_value(self.entry, CONF_POWER_METER_EXPORT, "")
+            return [entity for entity in (meter_import, meter_export) if entity]
+
+        power_meter = _entry_value(self.entry, CONF_POWER_METER, "")
+        return [power_meter] if power_meter else []
+
+    def _house_power_from_event(self, event: Event) -> float | None:
+        """Read house power using the configured single or dual meter mode."""
+        if _entry_value(self.entry, CONF_USE_DUAL_POWER_METERS, False):
+            meter_import = _entry_value(self.entry, CONF_POWER_METER_IMPORT, "")
+            meter_export = _entry_value(self.entry, CONF_POWER_METER_EXPORT, "")
+            import_state = self.hass.states.get(meter_import)
+            export_state = self.hass.states.get(meter_export)
+
+            if import_state is None or export_state is None:
+                return None
+            if (
+                import_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN, "")
+                or export_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN, "")
+            ):
+                return None
+
+            try:
+                import_power = float(import_state.state)
+                export_power = float(export_state.state)
+            except ValueError:
+                _LOGGER.warning(
+                    "Cannot parse dual meter states import='%s' export='%s' as watts; skipping",
+                    import_state.state,
+                    export_state.state,
+                )
+                return None
+
+            # With dual meters, both are positive values; net house power is import minus export.
+            return import_power - export_power
+
+        new_state = event.data.get("new_state")
+        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
+            return None
+
+        try:
+            return float(new_state.state)
+        except ValueError:
+            _LOGGER.warning(
+                "Cannot parse power meter state '%s' as watts; skipping",
+                new_state.state,
+            )
+            return None
 
     @callback
     def async_stop(self) -> None:
@@ -61,29 +131,24 @@ class HomeBatteryManagerCoordinator:
     @callback
     def _handle_power_meter_change(self, event: Event) -> None:
         """React to a power meter state change and update the battery setpoint."""
-        new_state = event.data.get("new_state")
-        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
-            return
-
-        try:
-            house_power = float(new_state.state)
-        except ValueError:
-            _LOGGER.warning(
-                "Cannot parse power meter state '%s' as watts; skipping",
-                new_state.state,
-            )
+        house_power = self._house_power_from_event(event)
+        if house_power is None:
             return
 
         # Determine allowed range from the number entity attributes, falling
         # back to the user-configured limits when the entity is not yet available.
         max_charge = float(
-            self.entry.data.get(CONF_MAX_CHARGE_POWER, DEFAULT_MAX_CHARGE_POWER)
+            _entry_value(self.entry, CONF_MAX_CHARGE_POWER, DEFAULT_MAX_CHARGE_POWER)
         )
         max_discharge = float(
-            self.entry.data.get(CONF_MAX_DISCHARGE_POWER, DEFAULT_MAX_DISCHARGE_POWER)
+            _entry_value(
+                self.entry,
+                CONF_MAX_DISCHARGE_POWER,
+                DEFAULT_MAX_DISCHARGE_POWER,
+            )
         )
 
-        battery_set_power_id: str = self.entry.data[CONF_BATTERY_SET_POWER]
+        battery_set_power_id = _entry_value(self.entry, CONF_BATTERY_SET_POWER, "")
         number_state = self.hass.states.get(battery_set_power_id)
         if number_state is not None:
             try:
@@ -99,7 +164,7 @@ class HomeBatteryManagerCoordinator:
         # Zero-export setpoint: negate house power so the battery offsets it.
         # Positive → charging, negative → discharging.
         battery_power = -house_power
-        if self.entry.data.get(CONF_INVERT_SET_POWER, False):
+        if _entry_value(self.entry, CONF_INVERT_SET_POWER, False):
             battery_power = -battery_power
         battery_power = max(entity_min, min(entity_max, battery_power))
         battery_power = round(battery_power, 1)
@@ -112,7 +177,11 @@ class HomeBatteryManagerCoordinator:
             entity_max,
         )
 
+        previous_setpoint = self.battery_power_setpoint
         self.battery_power_setpoint = battery_power
+        changed_state = event.data.get("new_state")
+        if previous_setpoint != battery_power and changed_state is not None:
+            self.set_power_last_changed = changed_state.last_changed
 
         # Command the battery asynchronously; errors are logged by HA.
         self.hass.async_create_task(
@@ -138,9 +207,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = HomeBatteryManagerCoordinator(hass, entry)
     coordinator.async_start()
     hass.data[DOMAIN][entry.entry_id] = coordinator
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry when options are updated."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

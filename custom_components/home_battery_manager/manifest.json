@@ -1,7 +1,7 @@
 {
   "domain": "home_battery_manager",
   "name": "Home Battery Manager",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/",
   "requirements": [],

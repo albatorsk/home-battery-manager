@@ -3,10 +3,7 @@
 DOMAIN = "home_battery_manager"
 
 # Config entry keys
-# Meter type
-CONF_METER_TYPE = "meter_type"
-METER_TYPE_SINGLE = "single"
-METER_TYPE_DUAL = "dual"
+CONF_USE_DUAL_POWER_METERS = "use_dual_power_meters"
 
 # Single-meter mode
 CONF_POWER_METER = "power_meter_entity"
@@ -16,7 +13,6 @@ CONF_POWER_METER_IMPORT = "power_meter_import_entity"
 CONF_POWER_METER_EXPORT = "power_meter_export_entity"
 
 CONF_BATTERY_SET_POWER = "battery_set_power_entity"
-CONF_BATTERY_SOC = "battery_soc_entity"
 CONF_INVERT_SET_POWER = "invert_set_power"
 CONF_MAX_CHARGE_POWER = "max_charge_power"
 CONF_MAX_DISCHARGE_POWER = "max_discharge_power"

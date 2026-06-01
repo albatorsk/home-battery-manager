@@ -1,35 +1,81 @@
 {
   "config": {
     "step": {
-      "user": {
+      "intro": {
+        "title": "Home Battery Manager",
+        "description": "Keep your grid import/export close to 0 W by automatically controlling your battery Set Power entity.\n\nBefore you continue, make sure you have:\n- A battery Set Power number entity (W)\n- Either one net house power sensor (import/export signed), or two separate sensors (import and export, both positive)\n\nClick Submit to continue to setup."
+      },
+      "config": {
         "title": "Home Battery Manager",
         "description": "Select the entities that represent your house power meter and battery.",
         "data": {
+          "use_dual_power_meters": "Use Separate Import and Export Meters",
           "power_meter_entity": "House Power Meter",
+          "power_meter_import_entity": "House Power Import Meter",
+          "power_meter_export_entity": "House Power Export Meter",
           "battery_set_power_entity": "Battery Set Power",
-          "battery_soc_entity": "Battery State of Charge",
           "max_charge_power": "Maximum Charge Power",
           "max_discharge_power": "Maximum Discharge Power",
           "invert_set_power": "Invert Set Power"
         },
         "data_description": {
-          "power_meter_entity": "Sensor measuring net house grid power in watts. Positive = importing from grid, negative = exporting to grid.",
+          "use_dual_power_meters": "Enable this when you have two sensors: one import meter and one export meter, both reporting positive watts.",
+          "power_meter_entity": "Single net power sensor in watts. Positive = importing from grid, negative = exporting to grid.",
+          "power_meter_import_entity": "Import meter in watts. Must be a positive value when importing.",
+          "power_meter_export_entity": "Export meter in watts. Must be a positive value when exporting.",
           "battery_set_power_entity": "Number entity used to command battery power in watts. Positive = charge, negative = discharge.",
-          "battery_soc_entity": "Sensor reporting the battery state of charge as a percentage.",
           "max_charge_power": "Upper limit for the charge power setpoint (watts). Used when the entity attributes do not specify a maximum.",
           "max_discharge_power": "Upper limit for the discharge power setpoint (watts, stored as a positive value). Used when the entity attributes do not specify a minimum.",
           "invert_set_power": "Flip the sign of the calculated battery setpoint before it is sent to the battery number entity."
         }
       }
+    },
+    "error": {
+      "single_meter_required": "Select House Power Meter when separate import/export meters are disabled.",
+      "dual_meters_required": "Select both import and export meters when separate import/export meters are enabled.",
+      "dual_meters_must_differ": "Import and export meters must be different entities."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Battery Manager",
+        "description": "Update the entities and power limits used by the controller.",
+        "data": {
+          "use_dual_power_meters": "Use Separate Import and Export Meters",
+          "power_meter_entity": "House Power Meter",
+          "power_meter_import_entity": "House Power Import Meter",
+          "power_meter_export_entity": "House Power Export Meter",
+          "battery_set_power_entity": "Battery Set Power",
+          "max_charge_power": "Maximum Charge Power",
+          "max_discharge_power": "Maximum Discharge Power",
+          "invert_set_power": "Invert Set Power"
+        },
+        "data_description": {
+          "use_dual_power_meters": "Enable this when you have two sensors: one import meter and one export meter, both reporting positive watts.",
+          "power_meter_entity": "Single net power sensor in watts. Positive = importing from grid, negative = exporting to grid.",
+          "power_meter_import_entity": "Import meter in watts. Must be a positive value when importing.",
+          "power_meter_export_entity": "Export meter in watts. Must be a positive value when exporting.",
+          "battery_set_power_entity": "Number entity used to command battery power in watts. Positive = charge, negative = discharge.",
+          "max_charge_power": "Upper limit for the charge power setpoint (watts). Used when the entity attributes do not specify a maximum.",
+          "max_discharge_power": "Upper limit for the discharge power setpoint (watts, stored as a positive value). Used when the entity attributes do not specify a minimum.",
+          "invert_set_power": "Flip the sign of the calculated battery setpoint before it is sent to the battery number entity."
+        }
+      }
+    },
+    "error": {
+      "single_meter_required": "Select House Power Meter when separate import/export meters are disabled.",
+      "dual_meters_required": "Select both import and export meters when separate import/export meters are enabled.",
+      "dual_meters_must_differ": "Import and export meters must be different entities."
     }
   },
   "entity": {
     "sensor": {
-      "battery_soc": {
-        "name": "State of Charge"
-      },
       "power_setpoint": {
         "name": "Power Setpoint"
+      },
+      "set_power_last_changed": {
+        "name": "Set Power Last Changed"
       }
     }
   }
