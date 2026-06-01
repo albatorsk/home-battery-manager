@@ -9,14 +9,16 @@
           "battery_set_power_entity": "Battery Set Power",
           "battery_soc_entity": "Battery State of Charge",
           "max_charge_power": "Maximum Charge Power",
-          "max_discharge_power": "Maximum Discharge Power"
+          "max_discharge_power": "Maximum Discharge Power",
+          "invert_set_power": "Invert Set Power"
         },
         "data_description": {
           "power_meter_entity": "Sensor measuring net house grid power in watts. Positive = importing from grid, negative = exporting to grid.",
           "battery_set_power_entity": "Number entity used to command battery power in watts. Positive = charge, negative = discharge.",
           "battery_soc_entity": "Sensor reporting the battery state of charge as a percentage.",
           "max_charge_power": "Upper limit for the charge power setpoint (watts). Used when the entity attributes do not specify a maximum.",
-          "max_discharge_power": "Upper limit for the discharge power setpoint (watts, stored as a positive value). Used when the entity attributes do not specify a minimum."
+          "max_discharge_power": "Upper limit for the discharge power setpoint (watts, stored as a positive value). Used when the entity attributes do not specify a minimum.",
+          "invert_set_power": "Flip the sign of the calculated battery setpoint before it is sent to the battery number entity."
         }
       }
     }

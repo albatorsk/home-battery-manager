@@ -15,6 +15,7 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_BATTERY_SET_POWER,
     CONF_BATTERY_SOC,
+    CONF_INVERT_SET_POWER,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_POWER_METER,
@@ -52,6 +53,7 @@ _STEP_USER_SCHEMA = vol.Schema(
                 mode=NumberSelectorMode.BOX,
             )
         ),
+        vol.Optional(CONF_INVERT_SET_POWER, default=False): bool,
     }
 )
 

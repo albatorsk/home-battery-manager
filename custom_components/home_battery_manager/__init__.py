@@ -11,6 +11,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
     CONF_BATTERY_SET_POWER,
+    CONF_INVERT_SET_POWER,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_POWER_METER,
@@ -97,7 +98,10 @@ class HomeBatteryManagerCoordinator:
 
         # Zero-export setpoint: negate house power so the battery offsets it.
         # Positive → charging, negative → discharging.
-        battery_power = max(entity_min, min(entity_max, -house_power))
+        battery_power = -house_power
+        if self.entry.data.get(CONF_INVERT_SET_POWER, False):
+            battery_power = -battery_power
+        battery_power = max(entity_min, min(entity_max, battery_power))
         battery_power = round(battery_power, 1)
 
         _LOGGER.debug(

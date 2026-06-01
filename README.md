@@ -47,6 +47,7 @@ You will be asked to select:
 | Battery State of Charge | Sensor reporting battery SoC (%). |
 | Maximum Charge Power | Upper clamp for the charge setpoint (W). Default: 5000 W. |
 | Maximum Discharge Power | Upper clamp for the discharge setpoint (W). Default: 5000 W. |
+| Invert Set Power | Flip the sign of the calculated setpoint before sending it to the battery. |
 
 ## How it works
 
@@ -56,7 +57,7 @@ Every time the power meter changes state the integration computes:
 battery_setpoint = clamp(-house_power, -max_discharge, max_charge)
 ```
 
-The clamped value is written to the battery Set Power entity via `number.set_value`. If the battery entity exposes `min`/`max` attributes those are preferred over the configured limits.
+If inversion is enabled, the sign is flipped before the value is clamped and written to the battery Set Power entity via `number.set_value`. If the battery entity exposes `min`/`max` attributes those are preferred over the configured limits.
 
 ## Entities created
 
