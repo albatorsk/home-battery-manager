@@ -2,6 +2,8 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
+> **Status:** This integration is still **far from complete** and **does not yet work as expected**.
+
 A Home Assistant custom integration that manages a home battery for **zero-export grid balancing**. It monitors your house power meter and automatically adjusts the battery charge/discharge power to keep your grid import/export as close to 0 W as possible.
 
 ## At a Glance
