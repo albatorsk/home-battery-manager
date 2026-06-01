@@ -9,7 +9,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfPower
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
@@ -42,7 +42,7 @@ def _device_info(entry: ConfigEntry) -> DeviceInfo:
         name="Home Battery Manager",
         manufacturer="Custom",
         model="Battery Controller",
-        entry_type="service",
+        entry_type=DeviceEntryType.SERVICE,
     )
 
 
