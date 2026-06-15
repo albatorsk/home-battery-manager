@@ -16,7 +16,9 @@
           "battery_set_power_entity": "Battery Set Power",
           "max_charge_power": "Maximum Charge Power",
           "max_discharge_power": "Maximum Discharge Power",
-          "invert_set_power": "Invert Set Power"
+          "invert_set_power": "Invert Set Power",
+          "update_interval_seconds": "Update Interval",
+          "overshoot_power": "Power Overshoot"
         },
         "data_description": {
           "use_dual_power_meters": "Enable this when you have two sensors: one import meter and one export meter, both reporting positive watts.",
@@ -26,7 +28,9 @@
           "battery_set_power_entity": "Number entity used to command battery power in watts. Positive = charge, negative = discharge.",
           "max_charge_power": "Upper limit for the charge power setpoint (watts). Used when the entity attributes do not specify a maximum.",
           "max_discharge_power": "Upper limit for the discharge power setpoint (watts, stored as a positive value). Used when the entity attributes do not specify a minimum.",
-          "invert_set_power": "Flip the sign of the calculated battery setpoint before it is sent to the battery number entity."
+          "invert_set_power": "Flip the sign of the calculated battery setpoint before it is sent to the battery number entity.",
+          "update_interval_seconds": "Minimum number of seconds between battery set power writes.",
+          "overshoot_power": "Extra watts added in the correction direction when importing or exporting. Example: with 100 W import and 20 W overshoot, the controller targets 120 W correction."
         }
       }
     },
@@ -49,7 +53,9 @@
           "battery_set_power_entity": "Battery Set Power",
           "max_charge_power": "Maximum Charge Power",
           "max_discharge_power": "Maximum Discharge Power",
-          "invert_set_power": "Invert Set Power"
+          "invert_set_power": "Invert Set Power",
+          "update_interval_seconds": "Update Interval",
+          "overshoot_power": "Power Overshoot"
         },
         "data_description": {
           "use_dual_power_meters": "Enable this when you have two sensors: one import meter and one export meter, both reporting positive watts.",
@@ -59,7 +65,9 @@
           "battery_set_power_entity": "Number entity used to command battery power in watts. Positive = charge, negative = discharge.",
           "max_charge_power": "Upper limit for the charge power setpoint (watts). Used when the entity attributes do not specify a maximum.",
           "max_discharge_power": "Upper limit for the discharge power setpoint (watts, stored as a positive value). Used when the entity attributes do not specify a minimum.",
-          "invert_set_power": "Flip the sign of the calculated battery setpoint before it is sent to the battery number entity."
+          "invert_set_power": "Flip the sign of the calculated battery setpoint before it is sent to the battery number entity.",
+          "update_interval_seconds": "Minimum number of seconds between battery set power writes.",
+          "overshoot_power": "Extra watts added in the correction direction when importing or exporting. Example: with 100 W import and 20 W overshoot, the controller targets 120 W correction."
         }
       }
     },

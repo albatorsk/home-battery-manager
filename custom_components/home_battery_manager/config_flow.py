@@ -19,12 +19,16 @@ from .const import (
     CONF_INVERT_SET_POWER,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
+    CONF_OVERSHOOT_POWER,
     CONF_POWER_METER,
     CONF_POWER_METER_EXPORT,
     CONF_POWER_METER_IMPORT,
+    CONF_UPDATE_INTERVAL_SECONDS,
     CONF_USE_DUAL_POWER_METERS,
     DEFAULT_MAX_CHARGE_POWER,
     DEFAULT_MAX_DISCHARGE_POWER,
+    DEFAULT_OVERSHOOT_POWER,
+    DEFAULT_UPDATE_INTERVAL_SECONDS,
     DOMAIN,
 )
 
@@ -118,6 +122,36 @@ def _build_schema(current_values: dict[str, Any]) -> vol.Schema:
                 CONF_INVERT_SET_POWER,
                 default=current_values.get(CONF_INVERT_SET_POWER, False),
             ): bool,
+            vol.Optional(
+                CONF_UPDATE_INTERVAL_SECONDS,
+                default=current_values.get(
+                    CONF_UPDATE_INTERVAL_SECONDS,
+                    DEFAULT_UPDATE_INTERVAL_SECONDS,
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=1,
+                    max=300,
+                    step=1,
+                    unit_of_measurement="s",
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_OVERSHOOT_POWER,
+                default=current_values.get(
+                    CONF_OVERSHOOT_POWER,
+                    DEFAULT_OVERSHOOT_POWER,
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max=10_000,
+                    step=1,
+                    unit_of_measurement="W",
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
         }
     )
 
@@ -225,6 +259,20 @@ class HomeBatteryManagerOptionsFlow(config_entries.OptionsFlow):
             CONF_INVERT_SET_POWER: self._entry.options.get(
                 CONF_INVERT_SET_POWER,
                 self._entry.data.get(CONF_INVERT_SET_POWER, False),
+            ),
+            CONF_UPDATE_INTERVAL_SECONDS: self._entry.options.get(
+                CONF_UPDATE_INTERVAL_SECONDS,
+                self._entry.data.get(
+                    CONF_UPDATE_INTERVAL_SECONDS,
+                    DEFAULT_UPDATE_INTERVAL_SECONDS,
+                ),
+            ),
+            CONF_OVERSHOOT_POWER: self._entry.options.get(
+                CONF_OVERSHOOT_POWER,
+                self._entry.data.get(
+                    CONF_OVERSHOOT_POWER,
+                    DEFAULT_OVERSHOOT_POWER,
+                ),
             ),
         }
 

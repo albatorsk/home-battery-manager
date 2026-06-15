@@ -3,24 +3,30 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
+from time import monotonic
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_BATTERY_SET_POWER,
     CONF_INVERT_SET_POWER,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
+    CONF_OVERSHOOT_POWER,
     CONF_POWER_METER,
     CONF_POWER_METER_EXPORT,
     CONF_POWER_METER_IMPORT,
+    CONF_UPDATE_INTERVAL_SECONDS,
     CONF_USE_DUAL_POWER_METERS,
     DEFAULT_MAX_CHARGE_POWER,
     DEFAULT_MAX_DISCHARGE_POWER,
+    DEFAULT_OVERSHOOT_POWER,
+    DEFAULT_UPDATE_INTERVAL_SECONDS,
     DOMAIN,
     SIGNAL_SETPOINT_UPDATED,
 )
@@ -54,6 +60,9 @@ class HomeBatteryManagerCoordinator:
         # Timestamp for when the setpoint value last changed.
         self.set_power_last_changed: datetime | None = None
         self._cancel_listener: callable | None = None
+        self._last_write_monotonic: float | None = None
+        self._pending_setpoint: int | None = None
+        self._cancel_scheduled_write: callable | None = None
 
     @callback
     def async_start(self) -> None:
@@ -127,6 +136,58 @@ class HomeBatteryManagerCoordinator:
         if self._cancel_listener is not None:
             self._cancel_listener()
             self._cancel_listener = None
+        if self._cancel_scheduled_write is not None:
+            self._cancel_scheduled_write()
+            self._cancel_scheduled_write = None
+
+    def _update_interval_seconds(self) -> float:
+        """Return configured minimum interval between setpoint writes."""
+        value = _entry_value(
+            self.entry,
+            CONF_UPDATE_INTERVAL_SECONDS,
+            DEFAULT_UPDATE_INTERVAL_SECONDS,
+        )
+        try:
+            return max(1.0, float(value))
+        except (ValueError, TypeError):
+            return float(DEFAULT_UPDATE_INTERVAL_SECONDS)
+
+    @callback
+    def _schedule_write(self, delay_seconds: float) -> None:
+        """Schedule sending a pending setpoint once throttling window has elapsed."""
+        if self._cancel_scheduled_write is not None:
+            return
+
+        async def _delayed_send() -> None:
+            self._cancel_scheduled_write = None
+            pending = self._pending_setpoint
+            if pending is None:
+                return
+            self._pending_setpoint = None
+            await self._async_send_setpoint(pending)
+
+        self._cancel_scheduled_write = self.hass.loop.call_later(
+            delay_seconds,
+            lambda: self.hass.async_create_task(_delayed_send()),
+        ).cancel
+
+    async def _async_send_setpoint(self, battery_power: int) -> None:
+        """Send a battery power command and publish updated sensor state."""
+        battery_set_power_id = _entry_value(self.entry, CONF_BATTERY_SET_POWER, "")
+        await self.hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": battery_set_power_id, "value": battery_power},
+            blocking=False,
+        )
+        self._last_write_monotonic = monotonic()
+        self.battery_power_setpoint = battery_power
+        self.set_power_last_changed = dt_util.utcnow()
+
+        async_dispatcher_send(
+            self.hass,
+            SIGNAL_SETPOINT_UPDATED.format(entry_id=self.entry.entry_id),
+        )
 
     @callback
     def _handle_power_meter_change(self, event: Event) -> None:
@@ -181,6 +242,22 @@ class HomeBatteryManagerCoordinator:
         # target_native = current_native - house_power
         current_native = -current_command if invert_set_power else current_command
         target_native = current_native - house_power
+
+        overshoot = _entry_value(
+            self.entry,
+            CONF_OVERSHOOT_POWER,
+            DEFAULT_OVERSHOOT_POWER,
+        )
+        try:
+            overshoot_watts = max(0.0, float(overshoot))
+        except (ValueError, TypeError):
+            overshoot_watts = float(DEFAULT_OVERSHOOT_POWER)
+
+        if house_power > 0:
+            target_native -= overshoot_watts
+        elif house_power < 0:
+            target_native += overshoot_watts
+
         battery_power = -target_native if invert_set_power else target_native
         battery_power = max(entity_min, min(entity_max, battery_power))
         battery_power = int(round(battery_power))
@@ -194,30 +271,24 @@ class HomeBatteryManagerCoordinator:
             entity_max,
         )
 
-        previous_setpoint = self.battery_power_setpoint
-        if previous_setpoint == battery_power:
+        if self.battery_power_setpoint == battery_power and self._pending_setpoint is None:
             return
 
-        self.battery_power_setpoint = battery_power
-        changed_state = event.data.get("new_state")
-        if previous_setpoint != battery_power and changed_state is not None:
-            self.set_power_last_changed = changed_state.last_changed
+        now_mono = monotonic()
+        interval = self._update_interval_seconds()
+        if self._last_write_monotonic is None:
+            elapsed = interval
+        else:
+            elapsed = now_mono - self._last_write_monotonic
 
-        # Command the battery asynchronously; errors are logged by HA.
-        self.hass.async_create_task(
-            self.hass.services.async_call(
-                "number",
-                "set_value",
-                {"entity_id": battery_set_power_id, "value": battery_power},
-                blocking=False,
-            )
-        )
+        if elapsed >= interval:
+            self.hass.async_create_task(self._async_send_setpoint(battery_power))
+            return
 
-        # Notify sensor entities that the setpoint has changed.
-        async_dispatcher_send(
-            self.hass,
-            SIGNAL_SETPOINT_UPDATED.format(entry_id=self.entry.entry_id),
-        )
+        # Keep only the latest target during the throttle window.
+        self._pending_setpoint = battery_power
+        remaining = interval - elapsed
+        self._schedule_write(remaining)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
