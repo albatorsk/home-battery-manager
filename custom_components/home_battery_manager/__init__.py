@@ -152,6 +152,18 @@ class HomeBatteryManagerCoordinator:
         except (ValueError, TypeError):
             return float(DEFAULT_UPDATE_INTERVAL_SECONDS)
 
+    def _get_min_command_interval(self) -> float:
+        """Return configured minimum interval between commands (hard cooldown)."""
+        value = _entry_value(
+            self.entry,
+            CONF_MIN_COMMAND_INTERVAL,
+            DEFAULT_MIN_COMMAND_INTERVAL,
+        )
+        try:
+            return max(1.0, float(value))
+        except (ValueError, TypeError):
+            return float(DEFAULT_MIN_COMMAND_INTERVAL)
+
     @callback
     def _schedule_write(self, delay_seconds: float) -> None:
         """Schedule sending a pending setpoint once throttling window has elapsed."""
@@ -271,15 +283,29 @@ class HomeBatteryManagerCoordinator:
             entity_max,
         )
 
+        # 1. Deadband Check: Only proceed if the change is significant.
+        deadband = _entry_value(self.entry, CONF_DEADBAND_THRESHOLD, DEFAULT_DEADBAND_THRESHOLD)
+        if self.battery_power_setpoint is not None and abs(self.battery_power_setpoint - battery_power) < deadband:
+            _LOGGER.debug("Setpoint change %.1f W is below deadband %.1f W; skipping", battery_power, deadband)
+            return
+
         if self.battery_power_setpoint == battery_power and self._pending_setpoint is None:
             return
 
         now_mono = monotonic()
         interval = self._update_interval_seconds()
+        min_command_interval = self._get_min_command_interval()
+        
         if self._last_write_monotonic is None:
             elapsed = interval
         else:
             elapsed = now_mono - self._last_write_monotonic
+
+        # 2. Hard cooldown (min command interval) enforcement.
+        if elapsed < min_command_interval:
+            self._pending_setpoint = battery_power
+            self._schedule_write(min_command_interval - elapsed)
+            return
 
         if elapsed >= interval:
             self.hass.async_create_task(self._async_send_setpoint(battery_power))

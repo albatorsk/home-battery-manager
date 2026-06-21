@@ -25,6 +25,12 @@ DEFAULT_MAX_DISCHARGE_POWER = 5000  # W
 DEFAULT_UPDATE_INTERVAL_SECONDS = 5  # s
 DEFAULT_OVERSHOOT_POWER = 0  # W
 
+CONF_DEADBAND_THRESHOLD = "deadband_threshold"
+DEFAULT_DEADBAND_THRESHOLD = 50  # W
+
+CONF_MIN_COMMAND_INTERVAL = "min_command_interval"
+DEFAULT_MIN_COMMAND_INTERVAL = 5  # s
+
 # Dispatcher signal sent when the battery power setpoint changes.
 # Format with entry_id before use.
 SIGNAL_SETPOINT_UPDATED = DOMAIN + "_{entry_id}_setpoint_updated"
